@@ -1,0 +1,5 @@
+{
+  "name": "AiLearn",
+  "description": "An interactive educational tool that generates explanations, visual metaphors, and quizzes for any topic using Google Gemini.",
+  "requestFramePermissions": []
+}
