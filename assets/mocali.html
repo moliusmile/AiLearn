@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理互动实验室：摩擦力</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f3f4f6;
+            touch-action: manipulation; /* 优化触控体验 */
+        }
+        canvas {
+            touch-action: none;
+        }
+        /* 自定义滑块样式 */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -8px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #d1d5db;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen p-4 text-gray-800">
+
+    <!-- 标题区 -->
+    <header class="w-full max-w-4xl mb-6 text-center">
+        <h1 class="text-3xl font-bold text-blue-700 mb-2">物理实验室：摩擦力模拟</h1>
+        <p class="text-sm text-gray-600">调整参数，观察静摩擦与动摩擦的变化关系。<br>公式: <code class="bg-gray-200 px-1 rounded">f = μN</code></p>
+    </header>
+
+    <!-- 主容器 -->
+    <main class="w-full max-w-4xl bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row">
+        
+        <!-- 左侧：模拟画布 -->
+        <div class="relative w-full md:w-2/3 h-80 md:h-auto bg-gray-100 border-b md:border-b-0 md:border-r border-gray-200" id="canvas-container">
+            <canvas id="simCanvas" class="w-full h-full block"></canvas>
+            
+            <!-- 画布上的浮动提示 -->
+            <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-2 rounded text-xs shadow pointer-events-none">
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span> 施加力 (F_app)</div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span> 摩擦力 (f)</div>
+                <div class="mt-1 text-gray-500 text-[10px]">注：箭头长度代表力的大小</div>
+            </div>
+        </div>
+
+        <!-- 右侧：控制面板 -->
+        <div class="w-full md:w-1/3 p-6 flex flex-col gap-6 bg-white">
+            
+            <!-- 数据显示 -->
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div class="bg-blue-50 p-2 rounded border border-blue-100">
+                    <div class="text-gray-500 text-xs">速度 (v)</div>
+                    <div class="font-mono font-bold text-blue-700" id="val-velocity">0.00 m/s</div>
+                </div>
+                <div class="bg-purple-50 p-2 rounded border border-purple-100">
+                    <div class="text-gray-500 text-xs">合力 (F_net)</div>
+                    <div class="font-mono font-bold text-purple-700" id="val-netforce">0 N</div>
+                </div>
+                <div class="bg-gray-50 p-2 rounded border border-gray-100 col-span-2">
+                    <div class="text-gray-500 text-xs">摩擦状态</div>
+                    <div class="font-bold text-gray-800" id="val-status">静止</div>
+                </div>
+            </div>
+
+            <!-- 控制器 -->
+            <div class="space-y-5">
+                
+                <!-- 施加力控制 -->
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-medium text-sm">施加推力 (F)</label>
+                        <span class="font-mono text-sm text-blue-600" id="disp-force">0 N</span>
+                    </div>
+                    <input type="range" id="input-force" min="-200" max="200" value="0" step="1" class="w-full">
+                    <div class="flex justify-between text-[10px] text-gray-400 mt-1">
+                        <span>向左推</span>
+                        <span>0</span>
+                        <span>向右推</span>
+                    </div>
+                    <button id="btn-reset-force" class="mt-2 w-full text-xs py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 transition">重置推力</button>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- 质量控制 -->
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-medium text-sm">物体质量 (m)</label>
+                        <span class="font-mono text-sm" id="disp-mass">10 kg</span>
+                    </div>
+                    <input type="range" id="input-mass" min="1" max="50" value="10" class="w-full">
+                </div>
+
+                <!-- 摩擦系数控制 -->
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="font-medium text-sm">摩擦系数 (μ)</label>
+                        <span class="font-mono text-sm" id="disp-mu">0.30</span>
+                    </div>
+                    <input type="range" id="input-mu" min="0.0" max="1.0" value="0.3" step="0.05" class="w-full">
+                    
+                    <!-- 材质预设按钮 -->
+                    <div class="grid grid-cols-3 gap-2 mt-2">
+                        <button class="preset-btn px-2 py-1 text-xs bg-cyan-100 text-cyan-800 rounded hover:bg-cyan-200 transition" data-mu="0.05" data-color="#e0f7fa">冰面</button>
+                        <button class="preset-btn px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded hover:bg-orange-200 transition" data-mu="0.4" data-color="#ffecb3">木头</button>
+                        <button class="preset-btn px-2 py-1 text-xs bg-stone-200 text-stone-800 rounded hover:bg-stone-300 transition" data-mu="0.8" data-color="#a8a29e">砂纸</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-8 text-center text-gray-500 text-xs max-w-lg">
+        <p>提示：静摩擦系数通常略大于动摩擦系数。本模拟中，为了体现这种效应，当你试图推动静止物体时，会感受到一个稍大的阻力阈值。</p>
+    </footer>
+
+    <script>
+        // --- 物理引擎核心 ---
+        const CONSTANTS = {
+            gravity: 9.8,
+            pixelsPerMeter: 40, // 比例尺
+            groundYRatio: 0.7,   // 地面在画布高度的比例
+            dt: 1/60,            // 时间步长
+            staticFrictionMultiplier: 1.2 // 静摩擦系数通常比动摩擦系数大一点
+        };
+
+        const state = {
+            mass: 10,       // kg
+            mu: 0.3,        // kinetic friction coeff
+            appliedForce: 0,// Newtons
+            
+            // 动态变量
+            posX: 0,        // meters (相对于中心)
+            velocity: 0,    // m/s
+            acceleration: 0,// m/s^2
+            
+            // 视觉状态
+            groundColor: '#ffecb3', // 默认木头颜色
+            isDragging: false
+        };
+
+        // DOM 元素引用
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const inputs = {
+            force: document.getElementById('input-force'),
+            mass: document.getElementById('input-mass'),
+            mu: document.getElementById('input-mu'),
+            resetForce: document.getElementById('btn-reset-force')
+        };
+        const displays = {
+            force: document.getElementById('disp-force'),
+            mass: document.getElementById('disp-mass'),
+            mu: document.getElementById('disp-mu'),
+            velocity: document.getElementById('val-velocity'),
+            netForce: document.getElementById('val-netforce'),
+            status: document.getElementById('val-status')
+        };
+        const presetBtns = document.querySelectorAll('.preset-btn');
+
+        // --- 初始化 & 大小调整 ---
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // --- 物理更新循环 ---
+        function updatePhysics() {
+            // 1. 计算垂直力
+            const normalForce = state.mass * CONSTANTS.gravity;
+            
+            // 2. 计算摩擦力限值
+            // 动摩擦力限值
+            const f_kinetic = state.mu * normalForce;
+            // 最大静摩擦力 (模拟略大一点的情况)
+            const f_static_max = f_kinetic * CONSTANTS.staticFrictionMultiplier;
+
+            let frictionForce = 0;
+            let netForce = 0;
+            let statusText = "";
+
+            // 3. 核心摩擦逻辑
+            // 极小速度阈值，用于判定是否静止
+            const velocityThreshold = 0.05; 
+
+            if (Math.abs(state.velocity) < velocityThreshold) {
+                // --- 接近静止状态 ---
+                state.velocity = 0; // 强制归零，防止抖动
+
+                if (Math.abs(state.appliedForce) <= f_static_max) {
+                    // 推力不足以克服最大静摩擦力
+                    frictionForce = -state.appliedForce;
+                    netForce = 0;
+                    statusText = "静止 (静摩擦)";
+                } else {
+                    // 推力超过最大静摩擦力，开始运动
+                    // 一旦运动，摩擦力变为动摩擦力，方向与推力相反
+                    frictionForce = -Math.sign(state.appliedForce) * f_kinetic;
+                    netForce = state.appliedForce + frictionForce;
+                    statusText = "起步中...";
+                }
+            } else {
+                // --- 运动状态 ---
+                // 摩擦力方向与速度方向相反
+                frictionForce = -Math.sign(state.velocity) * f_kinetic;
+                netForce = state.appliedForce + frictionForce;
+                statusText = "滑动 (动摩擦)";
+                
+                // 如果推力与速度反向且很大，或者不推了，物体会减速
+                // 这里的逻辑已经通过 netForce = F_app + f_fric 自动处理了
+            }
+
+            // 4. 牛顿第二定律 F = ma
+            state.acceleration = netForce / state.mass;
+
+            // 5. 欧拉积分更新状态
+            state.velocity += state.acceleration * CONSTANTS.dt;
+            state.posX += state.velocity * CONSTANTS.dt;
+
+            // 6. 边界处理 (碰到墙壁停止，不反弹，避免复杂性)
+            const edgeLimit = (canvas.width / 2 / CONSTANTS.pixelsPerMeter) - (boxWidthMeters() / 2);
+            if (state.posX > edgeLimit) {
+                state.posX = edgeLimit;
+                state.velocity = 0;
+                // 撞墙后状态
+                statusText = "已达右边界";
+            } else if (state.posX < -edgeLimit) {
+                state.posX = -edgeLimit;
+                state.velocity = 0;
+                statusText = "已达左边界";
+            }
+
+            // --- 更新 UI 数据 ---
+            updateUI(netForce, statusText, frictionForce);
+        }
+
+        function boxWidthMeters() {
+            // 根据质量稍微改变大小视觉，但不改变物理宽度逻辑太复杂，这里简化
+            // 基础宽度 2米
+            return 2 + (state.mass - 10) * 0.05; 
+        }
+
+        function updateUI(netForce, status, f_fric) {
+            displays.velocity.textContent = state.velocity.toFixed(2) + " m/s";
+            displays.netForce.textContent = Math.round(netForce) + " N";
+            displays.status.textContent = status;
+
+            // 动态颜色
+            if(status.includes("静止")) displays.status.className = "font-bold text-gray-800";
+            else if(status.includes("滑动")) displays.status.className = "font-bold text-green-600";
+            else displays.status.className = "font-bold text-red-600";
+        }
+
+        // --- 绘图逻辑 ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const centerX = canvas.width / 2;
+            const groundY = canvas.height * CONSTANTS.groundYRatio;
+            
+            // 1. 绘制天空/背景
+            ctx.fillStyle = "#eef2ff";
+            ctx.fillRect(0, 0, canvas.width, groundY);
+
+            // 2. 绘制地面
+            ctx.fillStyle = state.groundColor;
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+            
+            // 地面纹理线
+            ctx.strokeStyle = "rgba(0,0,0,0.1)";
+            ctx.beginPath();
+            for(let i=0; i<canvas.width; i+=40) {
+                ctx.moveTo(i, groundY);
+                ctx.lineTo(i - 20, canvas.height);
+            }
+            ctx.stroke();
+
+            // 3. 绘制物体
+            const boxW = boxWidthMeters() * CONSTANTS.pixelsPerMeter;
+            const boxH = boxW * 0.8; // 高度比例
+            const boxX = centerX + (state.posX * CONSTANTS.pixelsPerMeter) - (boxW / 2);
+            const boxY = groundY - boxH;
+
+            // 阴影
+            ctx.fillStyle = "rgba(0,0,0,0.2)";
+            ctx.fillRect(boxX + 5, boxY + boxH - 5, boxW, 5);
+
+            // 物体本体
+            ctx.fillStyle = "#3b82f6"; // Blue-500
+            ctx.strokeStyle = "#1d4ed8"; // Blue-700
+            ctx.lineWidth = 2;
+            ctx.fillRect(boxX, boxY, boxW, boxH);
+            ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+            // 物体中心装饰
+            ctx.fillStyle = "white";
+            ctx.font = "14px 'Noto Sans SC'";
+            ctx.textAlign = "center";
+            ctx.fillText(`${state.mass}kg`, boxX + boxW/2, boxY + boxH/2 + 5);
+
+            // 4. 绘制受力箭头
+            const centerBoxX = boxX + boxW/2;
+            const centerBoxY = boxY + boxH/2;
+
+            // 计算力的大小以便绘图 (缩放)
+            // 1. 重力 mg (向下)
+            drawArrow(centerBoxX, centerBoxY, 0, 1, state.mass * CONSTANTS.gravity, "#9ca3af", "mg");
+            // 2. 支持力 N (向上)
+            drawArrow(centerBoxX, boxY + boxH, 0, -1, state.mass * CONSTANTS.gravity, "#9ca3af", "N");
+
+            // 3. 施加力 F_app (水平)
+            if (Math.abs(state.appliedForce) > 1) {
+                drawArrow(centerBoxX, centerBoxY, Math.sign(state.appliedForce), 0, Math.abs(state.appliedForce), "#22c55e", "F");
+            }
+
+            // 4. 摩擦力 f (与运动趋势或速度相反)
+            // 为了可视化，我们需要重新计算一下当前的摩擦力（用于绘图，不影响物理步）
+            // 这里的逻辑稍微冗余，但为了绘图准确
+            let drawFriction = 0;
+            const normal = state.mass * CONSTANTS.gravity;
+            const f_k = state.mu * normal;
+            
+            if (Math.abs(state.velocity) > 0.05) {
+                drawFriction = f_k; // 动摩擦
+                // 方向与速度反向
+                const dir = -Math.sign(state.velocity);
+                drawArrow(centerBoxX, boxY + boxH, dir, 0, drawFriction, "#ef4444", "f");
+            } else if (Math.abs(state.appliedForce) > 1) {
+                 // 静摩擦，大小等于推力（直到最大值），方向相反
+                 const f_s_max = f_k * CONSTANTS.staticFrictionMultiplier;
+                 drawFriction = Math.min(Math.abs(state.appliedForce), f_s_max);
+                 const dir = -Math.sign(state.appliedForce);
+                 drawArrow(centerBoxX, boxY + boxH, dir, 0, drawFriction, "#ef4444", "f");
+            }
+
+        }
+
+        function drawArrow(x, y, dirX, dirY, magnitude, color, label) {
+            if (magnitude < 1) return;
+            
+            // 缩放系数，防止箭头太长
+            const scale = 1.5; 
+            const maxLen = 150;
+            let len = Math.min(magnitude * scale, maxLen);
+            // 保证最小可见度
+            len = Math.max(len, 20); 
+
+            const endX = x + dirX * len;
+            const endY = y + dirY * len;
+
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.moveTo(x, y);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+
+            // 箭头头部
+            const headLen = 8;
+            const angle = Math.atan2(endY - y, endX - x);
+            ctx.beginPath();
+            ctx.moveTo(endX, endY);
+            ctx.lineTo(endX - headLen * Math.cos(angle - Math.PI / 6), endY - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(endX - headLen * Math.cos(angle + Math.PI / 6), endY - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            // 标签
+            ctx.fillStyle = color;
+            ctx.font = "bold 12px sans-serif";
+            // 稍微偏移一点避免盖住线条
+            ctx.fillText(label, endX + (dirX*10), endY + (dirY*15) - 5);
+        }
+
+
+        // --- 事件监听 ---
+        
+        inputs.force.addEventListener('input', (e) => {
+            state.appliedForce = parseInt(e.target.value);
+            displays.force.textContent = state.appliedForce + " N";
+            displays.force.style.color = state.appliedForce === 0 ? '#4b5563' : (state.appliedForce > 0 ? '#2563eb' : '#ea580c');
+        });
+
+        inputs.resetForce.addEventListener('click', () => {
+            state.appliedForce = 0;
+            inputs.force.value = 0;
+            displays.force.textContent = "0 N";
+        });
+
+        inputs.mass.addEventListener('input', (e) => {
+            state.mass = parseInt(e.target.value);
+            displays.mass.textContent = state.mass + " kg";
+        });
+
+        inputs.mu.addEventListener('input', (e) => {
+            state.mu = parseFloat(e.target.value);
+            displays.mu.textContent = state.mu.toFixed(2);
+            // 自定义系数时，颜色变回默认或灰色
+            state.groundColor = "#e5e7eb"; 
+        });
+
+        presetBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mu = parseFloat(btn.dataset.mu);
+                const color = btn.dataset.color;
+                
+                state.mu = mu;
+                state.groundColor = color;
+                
+                inputs.mu.value = mu;
+                displays.mu.textContent = mu.toFixed(2);
+            });
+        });
+
+        // 动画循环
+        function loop() {
+            updatePhysics();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // 启动
+        loop();
+
+    </script>
+</body>
+</html>

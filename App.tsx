@@ -5,7 +5,7 @@ import ImageSection from './components/ImageSection';
 import QuizSection from './components/QuizSection';
 import { ExplanationState, ImageState, QuizState, AppState } from './types';
 import { streamExplanation, generateIllustration, generateQuiz } from './services/geminiService';
-
+import InterActionSection from './components/InterAction';
 function App() {
   const [hasApiKey, setHasApiKey] = useState(false);
   const [hasCheckedKey, setHasCheckedKey] = useState(false);
@@ -164,6 +164,9 @@ function App() {
                          <QuizSection quizData={quiz.data} isLoading={quiz.isLoading} />
                     </div>
                 </div>
+            </div>
+            <div className="w-full h-[800px] w-full">
+                <InterActionSection></InterActionSection>
             </div>
 
           </div>

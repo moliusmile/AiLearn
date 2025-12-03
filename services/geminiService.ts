@@ -47,7 +47,8 @@ export async function streamExplanation(
  */
 export async function generateIllustration(topic: string): Promise<string> {
   const ai = getAiClient();
-  const model = "gemini-3-pro-image-preview";
+  // const model = "gemini-3-pro-image-preview";
+  const model = "gemini-2.5-flash-image";
   // Creating a vivid prompt for a storyboard style image
   const prompt = `
     Draw a dynamic storyboard illustration (comic style/line art style) composed of 3 to 4 panels.
