@@ -6,6 +6,7 @@ import QuizSection from './components/QuizSection';
 import { ExplanationState, ImageState, QuizState, AppState } from './types';
 import { streamExplanation, generateIllustration, generateQuiz } from './services/geminiService';
 import InterActionSection from './components/InterAction';
+import MarkdownLatex from './utils/markdown-latex';
 function App() {
   const [hasApiKey, setHasApiKey] = useState(false);
   const [hasCheckedKey, setHasCheckedKey] = useState(false);
@@ -48,17 +49,20 @@ function App() {
     setExplanation({ text: '', isComplete: false });
     setImage({ url: null, isLoading: true });
     setQuiz({ data: null, isLoading: true });
-
+    let markLatexParser = new MarkdownLatex('',(...arr)=>{
+      setExplanation({ text: `${arr[0] || ''}${arr[1] || ''}`, isComplete: false })
+    });
     // 1. Start Text Stream
     const textPromise = streamExplanation(topic, (textChunk) => {
-      setExplanation(prev => ({ ...prev, text: prev.text + textChunk }));
+      markLatexParser.add(textChunk);
+      // setExplanation({ text: markLatexParser.getHTML(), isComplete: false })
+      // setExplanation(prev => ({ ...prev, text: prev.text + textChunk }));
     }).then(() => {
         setExplanation(prev => ({ ...prev, isComplete: true }));
     }).catch(err => {
         console.error("Text error", err);
         setExplanation(prev => ({ ...prev, text: prev.text + "\n\n[出错了: 无法生成解释]", isComplete: true }));
     });
-
     // 2. Start Image Generation
     const imagePromise = generateIllustration(topic)
       .then(url => setImage({ url, isLoading: false }))

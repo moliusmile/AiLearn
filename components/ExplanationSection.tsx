@@ -46,9 +46,10 @@ const ExplanationSection: React.FC<ExplanationSectionProps> = ({ text, isComplet
       >
         {text ? (
           <div className="prose prose-slate prose-lg max-w-none prose-headings:font-bold prose-p:leading-relaxed prose-li:marker:text-indigo-500 prose-a:text-indigo-600">
-            <ReactMarkdown>
+            {/* <ReactMarkdown>
               {displayText}
-            </ReactMarkdown>
+            </ReactMarkdown> */}
+            <div dangerouslySetInnerHTML={{ __html: displayText}}></div>
           </div>
         ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4 opacity-50">

@@ -19,7 +19,7 @@ const InterActionSection: React.FC<InterActionSectionProps> = ({  }) => {
       </div>
 
       <div className="flex-1 relative bg-slate-100 flex items-center justify-center min-h-[300px]">
-         <iframe src="/mocali.html" className="h-full w-full" frameborder="0"></iframe>
+         <iframe src="/mocali.html" className="h-full w-full"></iframe>
       </div>
     </div>
   );
