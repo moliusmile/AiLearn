@@ -3,8 +3,18 @@ import InputSection from './components/InputSection';
 import ExplanationSection from './components/ExplanationSection';
 import ImageSection from './components/ImageSection';
 import QuizSection from './components/QuizSection';
+import LabSection from './components/LabSection';
 import { ExplanationState, ImageState, QuizState, AppState } from './types';
-import { streamExplanation, generateIllustration, generateQuiz } from './services/geminiService';
+import { streamExplanation, generateIllustration, generateDiagram, generateQuiz } from './services/geminiService';
+
+// Mapping keywords to lab files
+// Using absolute paths ensures correct resolution relative to the web root
+const LAB_MAPPINGS: Record<string, string> = {
+  '摩擦': '/labs/friction.html',
+  'friction': '/labs/friction.html',
+  '力': '/labs/friction.html', 
+  'force': '/labs/friction.html'
+};
 
 function App() {
   const [hasApiKey, setHasApiKey] = useState(false);
@@ -15,8 +25,14 @@ function App() {
   
   // State for different sections
   const [explanation, setExplanation] = useState<ExplanationState>({ text: '', isComplete: false });
-  const [image, setImage] = useState<ImageState>({ url: null, isLoading: false });
+  const [image, setImage] = useState<ImageState>({ 
+    illustrationUrl: null, 
+    diagramUrl: null,
+    isIllustrationLoading: false,
+    isDiagramLoading: false 
+  });
   const [quiz, setQuiz] = useState<QuizState>({ data: null, isLoading: false });
+  const [labUrl, setLabUrl] = useState<string | null>(null);
 
   // Check for API Key on mount
   useEffect(() => {
@@ -46,8 +62,26 @@ function App() {
     setAppState(AppState.GENERATING);
     setCurrentTopic(topic);
     setExplanation({ text: '', isComplete: false });
-    setImage({ url: null, isLoading: true });
+    setImage({ 
+      illustrationUrl: null, 
+      diagramUrl: null,
+      isIllustrationLoading: true, 
+      isDiagramLoading: true 
+    });
     setQuiz({ data: null, isLoading: true });
+    setLabUrl(null);
+
+    // Check for matching labs
+    const normalizedTopic = topic.toLowerCase();
+    const foundLabKey = Object.keys(LAB_MAPPINGS).find(key => normalizedTopic.includes(key));
+    
+    // Set lab URL immediately if found
+    if (foundLabKey) {
+      console.log(`Found lab for topic "${topic}": ${LAB_MAPPINGS[foundLabKey]}`);
+      setLabUrl(LAB_MAPPINGS[foundLabKey]);
+    } else {
+      console.log(`No lab found for topic "${topic}"`);
+    }
 
     // 1. Start Text Stream
     const textPromise = streamExplanation(topic, (textChunk) => {
@@ -59,15 +93,23 @@ function App() {
         setExplanation(prev => ({ ...prev, text: prev.text + "\n\n[出错了: 无法生成解释]", isComplete: true }));
     });
 
-    // 2. Start Image Generation
-    const imagePromise = generateIllustration(topic)
-      .then(url => setImage({ url, isLoading: false }))
+    // 2. Start Illustration Generation
+    const illustrationPromise = generateIllustration(topic)
+      .then(url => setImage(prev => ({ ...prev, illustrationUrl: url, isIllustrationLoading: false })))
       .catch(err => {
-         console.error("Image error", err);
-         setImage({ url: null, isLoading: false });
+         console.error("Illustration error", err);
+         setImage(prev => ({ ...prev, illustrationUrl: null, isIllustrationLoading: false }));
       });
 
-    // 3. Start Quiz Generation
+    // 3. Start Diagram Generation
+    const diagramPromise = generateDiagram(topic)
+      .then(url => setImage(prev => ({ ...prev, diagramUrl: url, isDiagramLoading: false })))
+      .catch(err => {
+         console.error("Diagram error", err);
+         setImage(prev => ({ ...prev, diagramUrl: null, isDiagramLoading: false }));
+      });
+
+    // 4. Start Quiz Generation
     const quizPromise = generateQuiz(topic)
       .then(data => setQuiz({ data, isLoading: false }))
       .catch(err => {
@@ -76,7 +118,7 @@ function App() {
       });
 
     
-    await Promise.allSettled([textPromise, imagePromise, quizPromise]);
+    await Promise.allSettled([textPromise, illustrationPromise, diagramPromise, quizPromise]);
     setAppState(AppState.COMPLETED);
   };
 
@@ -147,24 +189,45 @@ function App() {
           <div className="space-y-8 animate-fade-in-up pb-10">
             
             {/* Main Content Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                {/* Left: Explanation (Main Content) - Sticky on large screens */}
-                <div className="h-[600px] lg:h-[calc(100vh-140px)] min-h-[600px] sticky top-24">
+            {/* By default grid items stretch to match the tallest item's height */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                {/* Left: Explanation (Main Content) */}
+                {/* 
+                   min-h-0 is CRITICAL here. 
+                   It prevents the grid item from expanding to fit its content (text),
+                   forcing it to respect the height determined by the Right column.
+                   This makes the internal scrollbar in ExplanationSection work correctly.
+                */}
+                <div className="flex flex-col h-full min-h-0">
                     <ExplanationSection text={explanation.text} isComplete={explanation.isComplete} />
                 </div>
 
-                {/* Right: Visuals & Context - Stacked with sufficient height */}
-                <div className="flex flex-col gap-8 w-full">
-                    {/* Image Section - Fixed height for consistent display */}
-                    <div className="h-[400px]">
-                        <ImageSection topic={currentTopic} imageUrl={image.url} isLoading={image.isLoading} />
+                {/* Right: Visuals & Context - This column determines the height */}
+                <div className="flex flex-col gap-8 w-full h-full">
+                    {/* Image Section - Flexible height */}
+                    <div>
+                        <ImageSection 
+                          topic={currentTopic} 
+                          illustrationUrl={image.illustrationUrl} 
+                          diagramUrl={image.diagramUrl}
+                          isIllustrationLoading={image.isIllustrationLoading}
+                          isDiagramLoading={image.isDiagramLoading}
+                        />
                     </div>
-                    {/* Quiz Section - Fixed height with scrollable internal content */}
-                    <div className="h-[600px]">
+                    {/* Quiz Section - Fixed height */}
+                    <div className="h-[600px] shrink-0">
                          <QuizSection quizData={quiz.data} isLoading={quiz.isLoading} />
                     </div>
                 </div>
             </div>
+
+            {/* Interactive Lab Section (Full Width if matches) */}
+            {labUrl && (
+              <div className="w-full">
+                <LabSection labUrl={labUrl} />
+              </div>
+            )}
 
           </div>
         )}

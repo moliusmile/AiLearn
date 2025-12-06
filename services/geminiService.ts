@@ -19,16 +19,15 @@ export async function streamExplanation(
     你是一位资深的教育专家。请为学生详细讲解知识点：“${topic}”。
     
     要求：
-    1. 语言通俗易懂，深入浅出。
-    2. 结构清晰，包含定义、原理、应用场景等。
-    3. 使用 Markdown 格式进行排版（使用粗体、列表等），但不要使用代码块包裹整个输出。
-    4. 篇幅适中，适合网页阅读。
+    1. 结构清晰，包含定义、原理、应用场景等。
+    2. 使用 Markdown 格式进行排版（使用粗体、列表等），但不要使用代码块包裹整个输出。
+    3. 篇幅适中，适合网页阅读。
   `;
 
   try {
     const responseStream = await ai.models.generateContentStream({
       model: model,
-      contents: prompt,
+      contents: prompt
     });
 
     for await (const chunk of responseStream) {
@@ -43,7 +42,7 @@ export async function streamExplanation(
 }
 
 /**
- * Generates an illustrative image for the topic.
+ * Generates an illustrative image (storyboard) for the topic.
  */
 export async function generateIllustration(topic: string): Promise<string> {
   const ai = getAiClient();
@@ -81,7 +80,49 @@ export async function generateIllustration(topic: string): Promise<string> {
     }
     throw new Error("No image data found in response");
   } catch (error) {
-    console.error("Error generating image:", error);
+    console.error("Error generating illustration:", error);
+    throw error;
+  }
+}
+
+/**
+ * Generates a concept diagram for the topic.
+ */
+export async function generateDiagram(topic: string): Promise<string> {
+  const ai = getAiClient();
+  const model = "gemini-3-pro-image-preview";
+  
+  const prompt = `
+    画一幅图说明“${topic}”，有必要的公式、图形表示。
+    
+    Requirements:
+    - Background: White (pure white background).
+    - Format: 16:9 landscape.
+    - Style: Clean, educational diagram/infographic style.
+    - Text: If any text appears in the image, it MUST be in Simplified Chinese (中文).
+    - Content: Visual representation of formulas, relationships, or structural diagrams explaining the concept clearly.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: prompt,
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9", 
+          imageSize: "1K" 
+        }
+      }
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData && part.inlineData.data) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+    throw new Error("No image data found in response");
+  } catch (error) {
+    console.error("Error generating diagram:", error);
     throw error;
   }
 }

@@ -29,8 +29,10 @@ export interface ExplanationState {
 }
 
 export interface ImageState {
-  url: string | null;
-  isLoading: boolean;
+  illustrationUrl: string | null;
+  diagramUrl: string | null;
+  isIllustrationLoading: boolean;
+  isDiagramLoading: boolean;
 }
 
 export interface QuizState {
