@@ -11,9 +11,7 @@ import { streamExplanation, generateIllustration, generateDiagram, generateQuiz 
 // Using absolute paths ensures correct resolution relative to the web root
 const LAB_MAPPINGS: Record<string, string> = {
   '摩擦': '/labs/friction.html',
-  'friction': '/labs/friction.html',
-  '力': '/labs/friction.html', 
-  'force': '/labs/friction.html'
+  'friction': '/labs/friction.html'
 };
 
 function App() {
@@ -189,18 +187,20 @@ function App() {
           <div className="space-y-8 animate-fade-in-up pb-10">
             
             {/* Main Content Layout */}
-            {/* By default grid items stretch to match the tallest item's height */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* 
+                Desktop Layout (lg):
+                The grid row height is determined by the Right Column (Images + Quiz).
+                The Left Column uses absolute positioning to fill that exact height, forcing the scrollbar.
+            */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
                 
                 {/* Left: Explanation (Main Content) */}
-                {/* 
-                   min-h-0 is CRITICAL here. 
-                   It prevents the grid item from expanding to fit its content (text),
-                   forcing it to respect the height determined by the Right column.
-                   This makes the internal scrollbar in ExplanationSection work correctly.
-                */}
-                <div className="flex flex-col h-full min-h-0">
-                    <ExplanationSection text={explanation.text} isComplete={explanation.isComplete} />
+                {/* Wrapper is relative to act as an anchor, but doesn't contribute height on desktop */}
+                <div className="relative min-h-[500px] lg:min-h-0 lg:h-auto">
+                    {/* Inner is absolute on desktop to stretch and scroll */}
+                    <div className="lg:absolute lg:inset-0 flex flex-col">
+                        <ExplanationSection text={explanation.text} isComplete={explanation.isComplete} />
+                    </div>
                 </div>
 
                 {/* Right: Visuals & Context - This column determines the height */}

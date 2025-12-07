@@ -16,18 +16,21 @@ export async function streamExplanation(
   const ai = getAiClient();
   const model = "gemini-2.5-flash";
   const prompt = `
-    你是一位资深的教育专家。请为学生详细讲解知识点：“${topic}”。
-    
-    要求：
-    1. 结构清晰，包含定义、原理、应用场景等。
-    2. 使用 Markdown 格式进行排版（使用粗体、列表等），但不要使用代码块包裹整个输出。
-    3. 篇幅适中，适合网页阅读。
+  Please provide a comprehensive and structured explanation of the topic: "${topic}".
+  Requirements:
+  1. Ensure a clear structure, covering definition, principles, application scenarios, and other relevant aspects.
+  2. Use Markdown formatting for readability (e.g., bold, lists, headings), but do not wrap the entire output in a code block.
+  3. Keep the length moderate, suitable for comfortable web reading.
+  4. The content is suitable for students.
   `;
 
   try {
     const responseStream = await ai.models.generateContentStream({
       model: model,
-      contents: prompt
+      contents: prompt,
+      config: {
+        systemInstruction: "You are an expert educator. Your goal is to explain complex topics clearly and engagingly."
+    }
     });
 
     for await (const chunk of responseStream) {
@@ -93,7 +96,7 @@ export async function generateDiagram(topic: string): Promise<string> {
   const model = "gemini-3-pro-image-preview";
   
   const prompt = `
-    画一幅图说明“${topic}”，有必要的公式、图形表示。
+    Draw an illustration to explain **"${topic}"**, including necessary formulas and graphical representations.
     
     Requirements:
     - Background: White (pure white background).

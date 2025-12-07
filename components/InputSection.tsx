@@ -19,12 +19,9 @@ const InputSection: React.FC<InputSectionProps> = ({ onSubmit, isLoading, compac
   return (
     <div className={`w-full mx-auto text-center transition-all duration-500 ease-in-out ${compact ? 'max-w-4xl' : 'max-w-2xl py-10 px-4'}`}>
       <div className={`transition-all duration-500 ease-in-out overflow-hidden ${compact ? 'max-h-0 opacity-0 mb-0' : 'max-h-40 opacity-100 mb-8'}`}>
-        <h1 className="text-4xl font-extrabold text-slate-800 mb-2 tracking-tight">
-          知识图谱教学生成器
+        <h1 className="text-2xl font-extrabold text-slate-800 mb-2 tracking-tight">
+          您的智能学习好伙伴，全方位帮您掌握知识点
         </h1>
-        <p className="text-slate-500 text-lg">
-          输入任何知识点，立即生成详解、生活实例图示与测试题。
-        </p>
       </div>
       
       <form onSubmit={handleSubmit} className="relative flex items-center">
@@ -32,7 +29,7 @@ const InputSection: React.FC<InputSectionProps> = ({ onSubmit, isLoading, compac
           <input
             type="text"
             className="w-full h-14 pl-6 pr-20 text-lg bg-transparent text-slate-900 placeholder-slate-400 focus:outline-none"
-            placeholder={compact ? "输入新知识点..." : "例如：光合作用、量子纠缠、机会成本..."}
+            placeholder={compact ? "输入想学习的内容..." : "输入您想学习的内容，例如：光合作用、摩擦力、龟兔赛跑..."}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={isLoading}
