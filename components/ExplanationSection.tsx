@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-
+import React, { useEffect, useRef, useState } from 'react';
+// import ReactMarkdown from 'react-markdown';
+import MarkdownLatex  from '../utils/markdown-latex';
 interface ExplanationSectionProps {
   text: string;
   isComplete: boolean;
@@ -8,6 +8,32 @@ interface ExplanationSectionProps {
 
 const ExplanationSection: React.FC<ExplanationSectionProps> = ({ text, isComplete }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const htmlContainer = useRef<HTMLDivElement>(null);
+  const markdownLatexRef = useRef<any>(null);
+  const bufferContainer = useRef<HTMLDivElement>(null);
+  
+  // Initialize MarkdownLatex and handle streaming
+  useEffect(() => {
+    if (text) {
+      if (!markdownLatexRef.current) {
+        // Create new instance with callback
+        markdownLatexRef.current = new MarkdownLatex(
+          text,
+          (curHtmlFull: string,curHtmlSegment: string,htmlFull: string, htmlSegment: string,) => {
+            // Combine committed HTML and current segment
+            htmlContainer.current.insertAdjacentHTML('beforeend', curHtmlFull);
+            bufferContainer.current.innerHTML = curHtmlSegment || '';
+          }
+        );
+      } else {
+        // Add new content to existing instance
+        markdownLatexRef.current.add(text,true);
+      }
+    }else{
+      markdownLatexRef.current?.reset();
+      
+    }
+  }, [text]);
 
   // Auto-scroll to bottom while streaming
   useEffect(() => {
@@ -18,10 +44,11 @@ const ExplanationSection: React.FC<ExplanationSectionProps> = ({ text, isComplet
             scrollRef.current.scrollTop = scrollHeight;
         }
     }
+    if(isComplete){
+      markdownLatexRef.current?.finish();
+    }
   }, [text, isComplete]);
 
-  // Add a cursor character to the text stream if generating
-  const displayText = isComplete ? text : text + " ▍";
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full min-h-[400px]">
@@ -45,10 +72,10 @@ const ExplanationSection: React.FC<ExplanationSectionProps> = ({ text, isComplet
         className="flex-1 p-8 overflow-y-auto"
       >
         {text ? (
-          <div className="prose prose-slate prose-lg max-w-none prose-headings:font-bold prose-p:leading-relaxed prose-li:marker:text-indigo-500 prose-a:text-indigo-600">
-            <ReactMarkdown>
-              {displayText}
-            </ReactMarkdown>
+          <div>
+            <div ref={htmlContainer} className="prose prose-slate prose-lg max-w-none prose-headings:font-bold prose-p:leading-relaxed prose-li:marker:text-indigo-500 prose-a:text-indigo-600">
+            </div>
+            <div ref={bufferContainer}></div>
           </div>
         ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4 opacity-50">
